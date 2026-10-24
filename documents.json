@@ -1,11 +1,36 @@
 [
   {
-    "name": "example",
-    "title": "TODO(author): the first document this industry must produce",
-    "for_each": "select gen_random_uuid() as id, 'Example' as name",
-    "file": "name",
+    "name": "maintenance-status",
+    "title": "Maintenance status report",
+    "for_each": "select id, reg || ' ' || make_model as label from aircraft where status <> 'sold' order by reg",
+    "file": "label",
     "sections": [
-      { "title": "Details", "sql": "select 'replace me' as item, $1::text as record_id" }
+      { "title": "Aircraft", "sql": "select t.reg, t.make_model as type, a.serial_no, a.year_built, t.base, t.owner, round(t.hours_now, 1) as airframe_hours, t.cycles_now as cycles, round(t.hours_30d, 1) as hours_last_30_days, t.last_flown_on from aircraft_totals t join aircraft a on a.id = t.id where t.id = $1" },
+      { "title": "Maintenance due", "sql": "select code as item, title, interval_hours, interval_days, last_done_on, last_done_hours, due_hours, due_on, left_hours, left_days, projected_on as at_current_flying from item_due where aircraft_id = $1 order by overdue desc, least(coalesce(due_on, projected_on), coalesce(projected_on, due_on)) nulls last" },
+      { "title": "Life-limited and tracked components", "sql": "select description, part_no, serial_no, position, tsn, csn, limit_hours, limit_cycles, left_hours, left_cycles, expires_on, release_doc from component_life where aircraft_id = $1 order by life_limited desc, description" },
+      { "title": "Airworthiness directives", "sql": "select number, authority, title, effective_on, status, complied_on, notes from directive_status where aircraft_id = $1 order by effective_on desc" },
+      { "title": "Open and deferred defects", "sql": "select number, raised_on, description, status, deferral_ref, defer_until from defects where aircraft_id = $1 and status <> 'rectified' order by number" }
+    ]
+  },
+  {
+    "name": "work-order",
+    "title": "Work order and certificate of release to service",
+    "for_each": "select w.id, w.number || ' ' || a.reg as label from work_orders w join aircraft a on a.id = w.aircraft_id where w.status <> 'cancelled' order by w.number",
+    "file": "label",
+    "sections": [
+      { "title": "Work order", "sql": "select w.number as work_order, a.reg, a.make_model as type, a.serial_no, w.title, w.opened_on, w.status from work_orders w join aircraft a on a.id = w.aircraft_id where w.id = $1" },
+      { "title": "Tasks", "sql": "select t.line as no, t.description as task, i.code as programme_item, i.reference, d.number as defect, t.done_on, e.full_name as done_by, t.done_hours as at_hours from work_order_tasks t left join maintenance_items i on i.id = t.maintenance_item_id left join defects d on d.id = t.defect_id left join engineers e on e.id = t.done_by where t.work_order_id = $1 order by t.line" },
+      { "title": "Release to service", "note": "The aircraft is not released until this section is signed by an engineer licensed and rated for the type.", "sql": "select e.full_name as engineer, e.licence_no as licence, w.certified_on as date, w.certified_hours as at_hours, w.crs_ref as crs_reference, case when w.status = 'certified' then '' else 'NOT YET RELEASED' end as signature from work_orders w left join engineers e on e.id = w.certified_by where w.id = $1" }
+    ]
+  },
+  {
+    "name": "ad-record",
+    "title": "Airworthiness directive compliance record",
+    "for_each": "select id, reg as label from aircraft where status <> 'sold' order by reg",
+    "file": "label",
+    "sections": [
+      { "title": "Aircraft", "sql": "select reg, make_model as type, serial_no, year_built from aircraft where id = $1" },
+      { "title": "Directives and service bulletins", "sql": "select s.number, s.authority, s.kind, s.title, s.effective_on, s.status, s.complied_on, x.complied_hours, e.full_name as assessed_by, s.notes, i.due_hours as next_due_hours, i.due_on as next_due_on from directive_status s left join directive_assessments x on x.directive_id = s.directive_id and x.aircraft_id = s.aircraft_id left join engineers e on e.id = x.assessed_by left join item_due i on i.aircraft_id = s.aircraft_id and i.code = s.number where s.aircraft_id = $1 order by s.effective_on desc" }
     ]
   }
 ]

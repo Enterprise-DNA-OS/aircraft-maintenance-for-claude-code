@@ -1,10 +1,10 @@
 {
   "_": "Your business on every document and view. Change these and run `npm run docs` or `npm run view`.",
-  "business_name": "Your Business",
+  "business_name": "Southern Lakes Aviation Ltd",
   "logo_path": "",
-  "primary": "#6654f5",
-  "accent": "#ca5a8b",
-  "ink": "#0b0c18",
+  "primary": "#1f4e79",
+  "accent": "#e3a72f",
+  "ink": "#0f1720",
   "paper": "#ffffff",
-  "footer_line": "Prepared with Aircraft Maintenance for Claude Code."
+  "footer_line": "Southern Lakes Aviation Ltd, Queenstown. Prepared with Aircraft Maintenance for Claude Code."
 }

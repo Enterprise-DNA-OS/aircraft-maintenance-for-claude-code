@@ -1,0 +1,4 @@
+Registration,Item Number,Description,Item Type,Interval Hours,Interval Months,Last Done Date,Last Done Hours
+ZK-SLA,100HR,100 hour inspection,Inspection,100,,12/10/2026,8420.5
+ZK-SLA,05-50-00 HOOK,"Cargo hook inspection, release unit",Inspection,,12,26/07/2026,8300.0
+ZK-SLA,DCA/AS350/880,Main gearbox chip detector,AD,100,,04/10/2026,8401.0

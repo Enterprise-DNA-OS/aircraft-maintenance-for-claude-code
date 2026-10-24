@@ -1,13 +1,67 @@
 [
   {
     "name": "week",
-    "title": "This week",
-    "subtitle": "Aircraft Maintenance for Claude Code: what needs attention, rendered by npm run view",
+    "title": "The fleet this week",
+    "subtitle": "Hours, what is due and what is holding an aircraft on the ground",
     "sections": [
       {
-        "title": "Needs attention",
-        "note": "TODO(author): point this at the industry's attention view (overdue, stuck, quiet).",
-        "sql": "select 'replace me' as item, 'TODO(author)' as why"
+        "title": "Fleet",
+        "sql": "select reg, make_model as type, base, status, round(hours_now, 1) as hours, cycles_now as cycles, round(hours_30d, 1) as hours_last_30_days, last_flown_on from aircraft_totals where status <> 'sold' order by reg"
+      },
+      {
+        "title": "Overdue",
+        "note": "Each of these holds the aircraft on the ground until it is done and released.",
+        "sql": "select reg, code as item, title, due_hours, due_on, left_hours, left_days from item_due where overdue order by reg, code"
+      },
+      {
+        "title": "Due in the next 30 hours or 40 days",
+        "sql": "select reg, code as item, title, due_hours, due_on, left_hours, left_days, projected_on as at_current_flying from item_due where not overdue and (left_hours <= 30 or left_days <= 40 or projected_on <= current_date + 40) order by least(coalesce(due_on, projected_on), coalesce(projected_on, due_on)), reg"
+      },
+      {
+        "title": "Hours flown, last 7 days",
+        "sql": "select a.reg, count(f.id) as entries, coalesce(sum(f.hours), 0) as hours, coalesce(sum(f.cycles), 0) as cycles from aircraft a left join flights f on f.aircraft_id = a.id and f.flown_on > current_date - 7 where a.status <> 'sold' group by a.reg order by a.reg"
+      }
+    ]
+  },
+  {
+    "name": "airworthiness",
+    "title": "Airworthiness",
+    "subtitle": "Directives, life-limited parts, defects and releases",
+    "sections": [
+      {
+        "title": "Directives not assessed or not complied with",
+        "sql": "select number, kind, reg, effective_on, title, status, hours_since_effective, comply_within_hours, comply_by, past_window from directive_status where status in ('unassessed', 'open') order by past_window desc, effective_on desc"
+      },
+      {
+        "title": "Life-limited parts",
+        "sql": "select reg, description, serial_no, tsn, csn, limit_hours, limit_cycles, left_hours, left_cycles, expires_on from component_life where life_limited order by coalesce(left_hours, 99999), reg"
+      },
+      {
+        "title": "Open and deferred defects",
+        "sql": "select d.number, a.reg, d.raised_on, d.status, d.deferral_ref, d.defer_until, d.description from defects d join aircraft a on a.id = d.aircraft_id where d.status <> 'rectified' order by d.defer_until nulls first, d.number"
+      },
+      {
+        "title": "Work done and not released to service",
+        "sql": "select w.number, a.reg, w.title, min(t.done_on) as first_task_done, count(t.id) filter (where t.done_on is null) as tasks_left from work_orders w join aircraft a on a.id = w.aircraft_id join work_order_tasks t on t.work_order_id = w.id where w.status = 'open' group by w.number, a.reg, w.title order by w.number"
+      },
+      {
+        "title": "Parts fitted with no release certificate on file",
+        "sql": "select reg, description, part_no, serial_no, installed_on from component_life where release_doc is null or release_doc = '' order by installed_on"
+      }
+    ]
+  },
+  {
+    "name": "people",
+    "title": "Engineers",
+    "subtitle": "Licences, ratings and releases",
+    "sections": [
+      {
+        "title": "Licences and ratings",
+        "sql": "select code, full_name, licence_no, licence_expires_on, array_to_string(ratings, ', ') as ratings, inspection_authorisation from engineers where active order by licence_expires_on"
+      },
+      {
+        "title": "Releases to service, last 90 days",
+        "sql": "select w.number, a.reg, w.title, w.certified_on, e.full_name as released_by, w.crs_ref from work_orders w join aircraft a on a.id = w.aircraft_id join engineers e on e.id = w.certified_by where w.certified_on > current_date - 90 order by w.certified_on desc"
       }
     ]
   }
